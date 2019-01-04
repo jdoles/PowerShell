@@ -110,7 +110,7 @@ try {
                     $message += "</body>"
 
                     # send the email
-                    Send-MailMessage -SmtpServer $MailServer -To $HelpDeskEmail -From $HelpDeskEmail -Subject $MailSubject -Body $message -BodyAsHtml -Priority High
+                    Send-MailMessage -SmtpServer $MailServer -To $_.EmailAddress -From $HelpDeskEmail -Subject $MailSubject -Body $message -BodyAsHtml -Priority High
                 }
             }
             Write-EventLog -LogName Application -Source "CustomScripts" -EventId 1000 -EntryType Information -Message "$ScriptName`nNotifed $($users.Count) users."
