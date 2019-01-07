@@ -39,7 +39,7 @@ Param (
     [Parameter(Mandatory=$False)]
         [string]$MailFrom = "no-reply@example.com",
     [Parameter(Mandatory=$False)]
-        [string]$AdminEmail = "admins@example.com",
+        [string[]]$AdminEmail = @("admins@example.com"),
     [Parameter(Mandatory=$False)]
         [string]$MailServer = "mail.example.com"
 )
@@ -90,11 +90,10 @@ try {
                     # add to the admin summary
                     $summary += "<tr>`n"
                     $summary += "<td>"+$_.Name+"</td>`n"
-                    if ( $daysleft -gt 0 ) {
-                        $message += "Your password for the $domain domain will expire in <span style=`"color:red; font-weight: bold; text-decoration: underline`">$daysleft</span> day(s).  To avoid interruption with company services, please consider changing your password as soon as possible.<br><br>"
-                    }
-                    if ( $daysleft -le 0 ) {
-                        $message += "Your password for the $domain domain has expired. Your access to company services may be impacted.<br><br>"
+                    if ($daysleft -le 0 ) {
+                        $summary += "<td style=`"color: red`">"+$daysleft+"</td>`n"
+                    } else {
+                        $summary += "<td>"+$daysleft+"</td>`n"
                     }
                     $summary += "<td>"+$_.PasswordLastSet+"</td>`n"
                     $summary += "</tr>`n"
@@ -119,7 +118,7 @@ try {
                     # send the email
                     # sleep to help throttle emails
                     Start-Sleep -Milliseconds (Get-Random -Minimum 100 -Maximum 750)
-                    Send-MailMessage -SmtpServer $MailServer -To $_.EmailAddress -From $HelpDeskEmail -Subject $MailSubject -Body $message -BodyAsHtml -Priority High
+                    Send-MailMessage -SmtpServer $MailServer -To $_.EmailAddress -From $MailFrom -Subject $MailSubject -Body $message -BodyAsHtml -Priority High
                 }
             }
             Write-EventLog -LogName Application -Source "CustomScripts" -EventId 1000 -EntryType Information -Message "$ScriptName`nNotifed $($users.Count) users."
@@ -129,6 +128,8 @@ try {
             <hr>
             <em><small>Server: " + $ScriptServer + "`nScript: " + $ScriptName + "`nScript Path: " + $ScriptDir + "</small></em>
         </body>"
+        # sleep to help throttle emails. prevents tarpitting
+        Start-Sleep -Milliseconds (Get-Random -Minimum 100 -Maximum 750)
         Send-MailMessage -SmtpServer $MailServer -To $AdminEmail -From $MailFrom -Subject $MailSubject -Body $summary -BodyAsHtml
     }
 } catch {
