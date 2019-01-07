@@ -108,7 +108,7 @@ try {
                     if ( $daysleft -le 0 ) {
                         $message += "Your password for the $domain domain has expired. Your access to company services may be impacted.<br><br>"
                     }
-                    $message += "If you need assistance, please contact the <a href=`"mailto:$($HelpDeskEmail)?subject=Password Expiration Notice Help`">Infrastructure team</a>.<br><br>"
+                    $message += "If you need assistance, please contact the <a href=`"mailto:$($HelpDeskEmail)?subject=Password Expiration Notice Help`">Help Desk team</a>.<br><br>"
                     $message += "Thank you,<br>"
                     $message += $UserEmailClosing
                     $message += "</p>"
