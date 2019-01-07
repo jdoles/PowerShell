@@ -22,23 +22,25 @@ Requires ActiveDirectory module
 
 #>
 Param (
-	[Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
         [int]$DaysToNotice = 10,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
         [string]$ADSearchBase = "dc=example,dc=com",
     [Parameter(Mandatory=$False)]
         [array]$ExcludedAccounts = @("DiscoverySearchMailbox", "SystemMailbox"),
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
         [string]$HelpDeskEmail = "helpdesk@example.com",
     [Parameter(Mandatory=$False)]
+        [string]$UserEmailClosing = "The Help Desk Team",
+    [Parameter(Mandatory=$False)]
         [bool]$LogToServer = $True,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
         [string]$MailSubject = "Domain Password Expiration Notice",
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
         [string]$MailFrom = "no-reply@example.com",
-    [Parameter(Mandatory=$True)]
-        [string]$MailTo = "admins@example.com",
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
+        [string]$AdminEmail = "admins@example.com",
+    [Parameter(Mandatory=$False)]
         [string]$MailServer = "mail.example.com"
 )
 
@@ -76,15 +78,15 @@ try {
         throw "Maximum Password Age not configured...exiting"
     } else {
         # get the list of users with expiring password
-        $users = Get-ADUser -SearchBase $ADSearchBase -Filter {Enabled -eq $true -and PasswordNeverExpires -eq $false} -Properties "Name","EmailAddress","PasswordLastSet" | Select-Object Name, Email, @{n="PasswordAge";e={(New-TimeSpan -Start $_.PasswordLastSet -End (Get-Date)).Days}}, PasswordLastSet | Sort-Object -Property Name
+        $users = Get-ADUser -SearchBase $ADSearchBase -Filter {Enabled -eq $true -and PasswordNeverExpires -eq $false} -Properties "Name","EmailAddress","PasswordLastSet" | Select-Object Name, EmailAddress, @{n="PasswordAge";e={(New-TimeSpan -Start $_.PasswordLastSet -End (Get-Date)).Days}}, PasswordLastSet | Sort-Object -Property Name
         if ($users.Count -eq 0) {
             # no users
             Write-Host "No users with passwords expiring in $DaysToNotice days"
         } else {
             $users | ForEach-Object {
                 $daysleft = ($maxpasswordage - $_.PasswordAge)
-                if ($daysleft -le $DaysToNotice) {
-                    # password is within threshold
+                if ($daysleft -le $DaysToNotice -and $ExcludedAccounts -notcontains $_.Name) {
+                    # password is within threshold and it's not an excluded account
                     # add to the admin summary
                     $summary += "<tr>`n"
                     $summary += "<td>"+$_.Name+"</td>`n"
@@ -103,13 +105,15 @@ try {
                     }
                     $message += "If you need assistance, please contact the <a href=`"mailto:$($HelpDeskEmail)?subject=Password Expiration Notice Help`">Infrastructure team</a>.<br><br>"
                     $message += "Thank you,<br>"
-                    $message += "The Help Desk Team"
+                    $message += $UserEmailClosing
                     $message += "</p>"
                     $message += "<hr>"
                     $message += "<p><em><small>Notice Generated: "+(Get-Date -Format g)+"</small></em></p>"
                     $message += "</body>"
 
                     # send the email
+                    # sleep to help throttle emails
+                    Start-Sleep -Milliseconds (Get-Random -Start 100 -Maximum 750)
                     Send-MailMessage -SmtpServer $MailServer -To $_.EmailAddress -From $HelpDeskEmail -Subject $MailSubject -Body $message -BodyAsHtml -Priority High
                 }
             }
@@ -120,7 +124,7 @@ try {
             <hr>
             <em><small>Server: " + $ScriptServer + "`nScript: " + $ScriptName + "`nScript Path: " + $ScriptDir + "</small></em>
         </body>"
-        Send-MailMessage -SmtpServer $MailServer -To $MailTo -From $MailFrom -Subject $MailSubject -Body $summary -BodyAsHtml
+        Send-MailMessage -SmtpServer $MailServer -To $AdminEmail -From $MailFrom -Subject $MailSubject -Body $summary -BodyAsHtml
     }
 } catch {
     $ename = $_.Exception.GetType().Name
