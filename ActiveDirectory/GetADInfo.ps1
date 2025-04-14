@@ -21,16 +21,37 @@ Requires ActiveDirectory module
 
 #>
 
-$reportpath = (Get-Item Env:USERPROFILE).Value + "\Desktop"
+# Check if the Active Directory module is loaded
+if (-not (Get-Module -Name ActiveDirectory)) {
+    Write-Host "Active Directory module is not loaded. Please load it before running this script."
+    exit
+}
 
+# Report Path
+# Alter this as desired.
+$reportpath = (Get-Item Env:USERPROFILE).Value + "\Desktop\ADInfo"
+
+# Check if the report path exists, if not create it
+if (-not (Test-Path -Path $reportpath)) {
+    New-Item -Path $reportpath -ItemType Directory | Out-Null
+}
+
+# Collection of site and domain controller information
+# Initialize arrays to hold site and domain controller information
 $siteinfo = [System.Collections.ArrayList]::new()
 $dcinfo = [System.Collections.ArrayList]::new()
 
+# Get the current domain name
+$domain = (Get-ADDomain).Name
+
+Write-Host "Gathering domain information for $domain"
+# Get the domain information
 $sites = Get-ADReplicationSite -Filter *
 $sitelinks = Get-ADReplicationSiteLink -Filter *
 $dcs = Get-ADDomainController -Filter * | Select-Object -Property Name,HostName,Site,IPv4Address,OperatingSystem,OperatingSystemVersion,IsGlobalCatalog,OperationMasterRoles
 
 Write-Host "Gathering site information"
+# Loop through each site and gather information
 $sites | ForEach-Object {
     $site = [PSCustomObject]@{
         SiteName = $_.Name
@@ -60,7 +81,7 @@ $sites | ForEach-Object {
 
     $siteinfo.Add($site) | Out-Null
 }
-
+# Get the domain controller information
 $dcs | ForEach-Object {
     $dc = [PSCustomObject]@{
         Name = $_.Name
@@ -74,6 +95,7 @@ $dcs | ForEach-Object {
     $dcinfo.Add($dc) | Out-Null
 }
 
+# Export the information to CSV files
 Write-Host "Exporting reports"
 $siteinfo | Export-Csv -Path "$reportpath\siteinfo.csv"
 $dcinfo | Export-Csv -Path "$reportpath\dcinfo.csv"
