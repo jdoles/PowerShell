@@ -48,7 +48,7 @@ Write-Host "Gathering domain information for $domain"
 # Get the domain information
 $sites = Get-ADReplicationSite -Filter *
 $sitelinks = Get-ADReplicationSiteLink -Filter *
-$dcs = Get-ADDomainController -Filter * | Select-Object -Property Name,HostName,Site,IPv4Address,OperatingSystem,OperatingSystemVersion,IsGlobalCatalog,OperationMasterRoles
+$dcs = Get-ADDomainController -Filter * | Select-Object -Property Name,HostName,Site,IPv4Address,OperatingSystem,OperatingSystemVersion,IsGlobalCatalog,OperationMasterRoles,Forest,Domain
 
 Write-Host "Gathering site information"
 # Loop through each site and gather information
@@ -91,6 +91,8 @@ $dcs | ForEach-Object {
         OperatingSystem = $_.OperatingSystem + " " + $_.OperatingSystemVersion
         GlobalCatalog = $_.IsGlobalCatalog ? "Yes" : "No"
         OperationMasterRoles = $_.OperationMasterRoles.Count -gt 0 ? $_.OperationMasterRoles -join "," : "None"
+        Forest = $_.Forest
+        Domain = $_.Domain
     }
     $dcinfo.Add($dc) | Out-Null
 }
