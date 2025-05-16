@@ -14,13 +14,20 @@
     This script requires PowerShell 5 or higher.
 #>
 
-$targetPath = "C:\temp"
+$targetPath = "C:\"
 if (Test-Path -Path $targetPath) {
     Write-Host "Enumerating: $targetPath"
-    Get-ChildItem -Path $targetPath -Directory | ForEach-Object {
+    Get-ChildItem -Path $targetPath -Directory | Where-Object {
+        -not ($_.Name -eq "System Volume Information") -and 
+        -not ($_.Name -eq "Windows") -and
+        -not ($_.Name -eq "Users")
+    } | ForEach-Object {
         $folderPath = $_.FullName
         $folderSize = (Get-ChildItem -Path $folderPath -Recurse -ErrorAction SilentlyContinue | 
-                    Where-Object { -not $_.PSIsContainer } |
+                    Where-Object { 
+                        -not ($_.Attributes -match "ReparsePoint") -and
+                        -not ($_.PSIsContainer)
+                    }|
                     Measure-Object -Property Length -Sum).Sum
 
         [PSCustomObject]@{

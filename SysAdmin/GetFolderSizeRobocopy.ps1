@@ -1,5 +1,5 @@
 <#
-    GetFolderSizeRobocopy.ps1
+    Get-FolderSizeRobocopy.ps1
     Author: Justin Doles
     Requires: PowerShell 5 or higher, Robocopy
 #>
@@ -24,43 +24,47 @@
     .PARAMETER ExcludeFolders
         An array of folder names to exclude from the scan. This can be used to skip specific folders.  Folder names are case-insensitive and are relative to the root path.
         For example, to exclude "Temp" and "Logs", use: -ExcludeFolders "Temp", "Logs".
+    .PARAMETER MaxConcurrentJobs
+        The maximum number of concurrent jobs to run. Default is 10. Adjust this based on your system's capabilities.
 #>
 param (
     [string]$RootPath = "C:\Temp",
     [string]$OutputCsv = "",
     [switch]$Recurse,
     [switch]$ShowConsoleOutput,
-    [string[]]$ExcludeFolders = @()
+    [string[]]$ExcludeFolders = @(),
+    [int]$MaxConcurrentJobs = 10
 )
 
-function Get-FolderStatsWithRobocopy {
-    param (
-        [string]$Path
-    )
+function Start-RobocopyJob {
+    param($FolderPath)
 
-    $output = robocopy $Path NULL /L /NFL /NDL /NJH /BYTES /NC /NP 2>&1
+    Start-Job -ScriptBlock {
+        param($folderPath)
 
-    $bytes = 0
-    $files = 0
+        $output = robocopy $folderPath NULL /L /NFL /NDL /NJH /BYTES /NC /NP 2>&1
 
-    foreach ($line in $output) {
-        if ($line -match "Bytes\s+:\s+(\d+)\s") {
-            $bytes = [int64]$matches[1]
+        $bytes = 0
+        $files = 0
+
+        foreach ($line in $output) {
+            if ($line -match "Bytes\s+:\s+(\d+)\s") {
+                $bytes = [int64]$matches[1]
+            } elseif ($line -match "Files\s+:\s+(\d+)") {
+                $files = [int]$matches[1]
+            }
         }
-        elseif ($line -match "Files\s+:\s+(\d+)") {
-            $files = [int]$matches[1]
-        }
-    }
 
-    return [PSCustomObject]@{
-        Folder     = $Path
-        SizeBytes  = $bytes
-        SizeGB     = "{0:N2}" -f ($bytes / 1GB)
-        FileCount  = $files
-    }
+        return [PSCustomObject]@{
+            Folder     = $folderPath
+            SizeBytes  = $bytes
+            SizeGB     = "{0:N2}" -f ($bytes / 1GB)
+            FileCount  = $files
+        }
+    } -ArgumentList $FolderPath
 }
 
-# Build list of folders, excluding reparse points and user-defined folder names
+# Step 1: Discover and filter folders
 $folders = if ($Recurse) {
     Get-ChildItem -Path $RootPath -Directory -Recurse -Force -ErrorAction SilentlyContinue
 } else {
@@ -72,23 +76,37 @@ $folders = $folders | Where-Object {
     -not ($ExcludeFolders -contains $_.Name)
 }
 
-# Include root folder if it isn't excluded
 if (-not ($ExcludeFolders -contains (Split-Path $RootPath -Leaf))) {
     $folders = @([pscustomobject]@{ FullName = $RootPath }) + $folders
 }
 
-# Scan with progress
-$total = $folders.Count
-$counter = 0
+$folderPaths = $folders.FullName
+$total = $folderPaths.Count
 $results = @()
+$jobQueue = @()
 
-foreach ($folder in $folders) {
-    $counter++
-    Write-Progress -Activity "Scanning Folders" -Status "$counter of $total" -PercentComplete (($counter / $total) * 100)
-    $results += Get-FolderStatsWithRobocopy -Path $folder.FullName
+$i = 0
+while ($i -lt $total -or $jobQueue.Count -gt 0) {
+    # Launch jobs up to the max concurrency
+    while ($i -lt $total -and $jobQueue.Count -lt $MaxConcurrentJobs) {
+        $path = $folderPaths[$i]
+        $job = Start-RobocopyJob -FolderPath $path
+        $jobQueue += $job
+        $i++
+    }
+
+    # Wait for any job to complete and process it
+    $completedJob = Wait-Job -Job $jobQueue -Any
+    $results += Receive-Job -Job $completedJob
+    Remove-Job -Job $completedJob
+    $jobQueue = $jobQueue | Where-Object { $_.Id -ne $completedJob.Id }
+
+    Write-Progress -Activity "Scanning folders" `
+        -Status "$($results.Count) of $total complete" `
+        -PercentComplete (($results.Count / $total) * 100)
 }
 
-Write-Progress -Activity "Scanning Folders" -Completed
+Write-Progress -Activity "Scanning folders" -Completed
 
 # Sort and output
 $sortedResults = $results | Sort-Object SizeBytes -Descending
