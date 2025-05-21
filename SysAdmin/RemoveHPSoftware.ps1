@@ -94,6 +94,7 @@ function Remove-Apps {
 # This list should contain the names of the HP software you want to uninstall
 $software = @(
     "HP Connection Optimizer",
+    "HP Customer Experience Enhancements",
     "HP Documentation",
     "HP Easy Clean",
     "HP Games",
@@ -131,7 +132,7 @@ $softwareList = Get-WmiObject -Class  Win32_Product -Filter "Name like 'HP%'"
 $softwareList | ForEach-Object {
     if ($_.Name -in $software) {
         Remove-Software -Software $_
-
+    }
 }
 
 # Loop through each unwanted app and remove it if found
