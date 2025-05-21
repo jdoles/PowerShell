@@ -125,11 +125,13 @@ $appsRemoved = 0
 
 # Get the list of installed HP software using WMI
 Write-Log -Message "Searching for installed HP software..."
-$softwareList = Get-WmiObject -Class  Win32_Product -Filter "Name like 'HP%'"
+$softwareList = Get-WmiObject -Class  Win32_Product -Filter "Name like 'HP%'" 
 
 # Loop through each unwanted software and remove it if found
 $softwareList | ForEach-Object {
-    Remove-Software -Software $_
+    if ($_.Name -in $software) {
+        Remove-Software -Software $_
+
 }
 
 # Loop through each unwanted app and remove it if found
