@@ -36,13 +36,13 @@ function Remove-Software {
 
         # Remove the software using Uninstall()
         Write-Log -Message "REMOVE: $($Software.Name)"
-        #$uninstallCommand = $Software.Uninstall()
-        #if ($uninstallCommand.ReturnValue -eq 0) {
+        $uninstallCommand = $Software.Uninstall()
+        if ($uninstallCommand.ReturnValue -eq 0) {
             Write-Log -Message "Successfully uninstalled: $($Software.Name)"
             $script:appsRemoved++
-        #} else {
-        #    Write-Log -Message "Failed to uninstall: $($Software.Name)" -Level "ERROR"
-        #}
+        } else {
+            Write-Log -Message "Failed to uninstall: $($Software.Name)" -Level "ERROR"
+        }
 }
 
 function Remove-Apps {
@@ -62,14 +62,14 @@ function Remove-Apps {
                 } else {
                     # Remove the app using Remove-AppxPackage
                     Write-Log -Message "REMOVE: $($instance.Name)"
-                    #$instance | Remove-AppxPackage -AllUsers
+                    $instance | Remove-AppxPackage -AllUsers
                     $script:appsRemoved++
                 }
             }
         } else {
             Write-Log -Message "REMOVE: $($appInfo.Name)"
             # Remove the app using Remove-AppxPackage
-            #$appInfo | Remove-AppxPackage -AllUsers
+            $appInfo | Remove-AppxPackage -AllUsers
             $script:appsRemoved++
         }
     } else {
@@ -82,7 +82,7 @@ function Remove-Apps {
         if ($appImage) {
             # Remove the app from the image using Remove-AppxProvisionedPackage
             Write-Log -Message "REMOVE: $AppName from image..."
-            #$appImage | Remove-AppxProvisionedPackage -Online
+            $appImage | Remove-AppxProvisionedPackage -Online
             $script:appsRemoved++
         } else {
             Write-Log -Message "$AppName not found in image."
