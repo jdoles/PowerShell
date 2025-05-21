@@ -2,7 +2,7 @@
     RemoveUnwantedApps.ps1
     Author: Justin Doles
     Requires: PowerShell 5 or higher
-    Updated: 2025-05-20
+    Updated: 2025-05-21
     Repository: https://github.com/jdoles/PowerShell
 #>
 <#
@@ -43,42 +43,50 @@ function Remove-Apps {
         [switch]$RemoveFromImage
     )
 
-    # Get the app information using Get-AppxPackage
-    $appInfo = Get-AppxPackage -AllUsers | Where-Object {$_.name -like "*$AppName*"}
-    if ($appInfo) {
-        if ($appInfo.Count -gt 1) {
-            Write-Log "Multiple instances of $($appInfo.Name) found. Removing all instances."
-            foreach ($instance in $appInfo) {
-                if ($instance.NonRemovable -eq $true) {
-                    Write-Log -Message "Cannot remove: $($instance.Name) (Non-removable)" -Level "WARN"
-                } else {
-                    # Remove the app using Remove-AppxPackage
-                    Write-Log -Message "REMOVE: $($instance.Name)"
-                    $instance | Remove-AppxPackage -AllUsers
-                    $script:appsRemoved++
+    try {
+        # Get the app information using Get-AppxPackage
+        $appInfo = Get-AppxPackage -AllUsers | Where-Object {$_.name -like "*$AppName*"}
+        if ($appInfo) {
+            if ($appInfo.Count -gt 1) {
+                Write-Log "Multiple instances of $($appInfo.Name) found. Removing all instances."
+                foreach ($instance in $appInfo) {
+                    if ($instance.NonRemovable -eq $true) {
+                        Write-Log -Message "Cannot remove: $($instance.Name) (Non-removable)" -Level "WARN"
+                    } else {
+                        # Remove the app using Remove-AppxPackage
+                        Write-Log -Message "Removing $($instance.Name)"
+                        $instance | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+                        $script:appsRemoved++
+                    }
                 }
+            } else {
+                Write-Log -Message "Removing $($appInfo.Name)"
+                # Remove the app using Remove-AppxPackage
+                $appInfo | Remove-AppxPackage -AllUsers
+                $script:appsRemoved++
             }
         } else {
-            Write-Log -Message "REMOVE: $($appInfo.Name)"
-            # Remove the app using Remove-AppxPackage
-            $appInfo | Remove-AppxPackage -AllUsers
-            $script:appsRemoved++
+            Write-Log -Message "$appName not found."
         }
-    } else {
-        Write-Log -Message "$appName not found."
+    } catch {
+        Write-Log -Message "Error while removing app: $_" -Level "ERROR"
     }
 
     # If the RemoveFromImage switch is specified, remove the app from the system image
-    if ($RemoveFromImage) {
-        $appImage = Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -like "*$AppName*"}
-        if ($appImage) {
-            # Remove the app from the image using Remove-AppxProvisionedPackage
-            Write-Log -Message "REMOVE: $AppName from image..."
-            $appImage | Remove-AppxProvisionedPackage -Online
-            $script:appsRemoved++
-        } else {
-            Write-Log -Message "$AppName not found in image."
+    try {
+        if ($RemoveFromImage) {
+            $appImage = Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -like "*$AppName*"}
+            if ($appImage) {
+                # Remove the app from the image using Remove-AppxProvisionedPackage
+                Write-Log -Message "Removing $AppName from image..."
+                $appImage | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+                $script:appsRemoved++
+            } else {
+                Write-Log -Message "$AppName not found in image."
+            }
         }
+    } catch {
+        Write-Log -Message "Error removing app from image: $_" -Level "ERROR"
     }
 }
 
@@ -86,6 +94,7 @@ function Remove-Apps {
 $software = @(
     "Microsoft.BingFinance",
     "Microsoft.BingNews",
+    "Microsoft.BingSearch",
     "Microsoft.BingSports",
     "Microsoft.BingWeather",
     "Microsoft.Getstarted"
