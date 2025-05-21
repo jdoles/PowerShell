@@ -1,0 +1,145 @@
+<#
+    RemoveHPSoftware.ps1
+    Author: Justin Doles
+    Requires: PowerShell 5 or higher
+    Updated: 2025-05-20
+    Repository: https://github.com/jdoles/PowerShell
+#>
+<#
+    .SYNOPSIS
+        This script uninstalls all non-essential HP software from the system.
+    .DESCRIPTION
+        This script uninstalls all non-essential HP software from the system using WMI and AppxPackage.
+    .EXAMPLE
+        RemoveHPSoftware.ps1
+    .NOTES
+        This script requires PowerShell 5 or higher and administrative privileges.
+    .PARAMETER None
+        No parameters are required for this script.
+#>
+
+# Function to log messages with a timestamp
+function Write-Log {
+    param (
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "[$timestamp] [$Level]: $Message"
+}
+
+function Remove-Software {
+    param (
+        [Parameter(Mandatory=$true)]
+        [System.Management.ManagementObject]$Software
+    )
+
+        # Remove the software using Uninstall()
+        Write-Log -Message "REMOVE: $($Software.Name)"
+        #$uninstallCommand = $Software.Uninstall()
+        #if ($uninstallCommand.ReturnValue -eq 0) {
+            Write-Log -Message "Successfully uninstalled: $($Software.Name)"
+            $script:appsRemoved++
+        #} else {
+        #    Write-Log -Message "Failed to uninstall: $($Software.Name)" -Level "ERROR"
+        #}
+}
+
+function Remove-Apps {
+    param (
+        [string]$AppName,
+        [switch]$RemoveFromImage
+    )
+
+    # Get the app information using Get-AppxPackage
+    $appInfo = Get-AppxPackage -AllUsers | Where-Object {$_.name -like "*$AppName*"}
+    if ($appInfo) {
+        if ($appInfo.Count -gt 1) {
+            Write-Log "Multiple instances of $($appInfo.Name) found. Removing all instances."
+            foreach ($instance in $appInfo) {
+                if ($instance.NonRemovable -eq $true) {
+                    Write-Log -Message "Cannot remove: $($instance.Name) (Non-removable)" -Level "WARN"
+                } else {
+                    # Remove the app using Remove-AppxPackage
+                    Write-Log -Message "REMOVE: $($instance.Name)"
+                    #$instance | Remove-AppxPackage -AllUsers
+                    $script:appsRemoved++
+                }
+            }
+        } else {
+            Write-Log -Message "REMOVE: $($appInfo.Name)"
+            # Remove the app using Remove-AppxPackage
+            #$appInfo | Remove-AppxPackage -AllUsers
+            $script:appsRemoved++
+        }
+    } else {
+        Write-Log -Message "$appName not found."
+    }
+
+    # If the RemoveFromImage switch is specified, remove the app from the system image
+    if ($RemoveFromImage) {
+        $appImage = Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -like "*$AppName*"}
+        if ($appImage) {
+            # Remove the app from the image using Remove-AppxProvisionedPackage
+            Write-Log -Message "REMOVE: $AppName from image..."
+            #$appImage | Remove-AppxProvisionedPackage -Online
+            $script:appsRemoved++
+        } else {
+            Write-Log -Message "$AppName not found in image."
+        }
+    }
+}
+
+# List of HP software to uninstall
+# This list should contain the names of the HP software you want to uninstall
+$software = @(
+    "HP Connection Optimizer",
+    "HP Documentation",
+    "HP Easy Clean",
+    "HP Games",
+    "HP Notifications",
+    "HP Support Assistant",
+    "HP Support Information",
+    "HP Sure Click", # HP's application isolation software
+    "HP Sure Connect", # HP's network driver recovery software
+    "HP Sure Run", # HP's application isolation software
+    "HP Sure Run Module", # HP's application isolation software
+    "HP System Default Settings",
+    "HP Welcome",
+    "HP Wolf Security",
+    "HP Wolf Security - Console"
+)
+
+# List of UWP apps to remove
+$packages = @(
+    ".HPSystemInformation",
+    ".HPPrivacySettings",
+    ".HPPCHardwareDiagnosticsWindows",
+    ".HPDesktopSupportUtilities",
+    ".myHP",
+    ".HPEasyClean"
+)
+
+# Counter for the number of apps found
+$appsRemoved = 0
+
+# Get the list of installed HP software using WMI
+Write-Log -Message "Searching for installed HP software..."
+$softwareList = Get-WmiObject -Class  Win32_Product -Filter "Name like 'HP%'"
+
+# Loop through each unwanted software and remove it if found
+$softwareList | ForEach-Object {
+    Remove-Software -Software $_
+}
+
+# Loop through each unwanted app and remove it if found
+$packages | ForEach-Object {
+    Remove-Apps -AppName $_ -RemoveFromImage
+}
+
+# Check if any apps were removed
+if ($appsRemoved -eq 0) {
+    Write-Log -Message "No unwanted apps found."
+} else {
+    Write-Log -Message "$appsRemoved unwanted apps removed."
+}

@@ -2,7 +2,8 @@
     RemoveUnwantedApps.ps1
     Author: Justin Doles
     Requires: PowerShell 5 or higher
-    Updated: 2025-05-19
+    Updated: 2025-05-20
+    Repository: https://github.com/jdoles/PowerShell
 #>
 <#
     .SYNOPSIS
@@ -25,12 +26,14 @@ param (
     [switch]$RemoveFromImage
 )
 
+# Function to log messages with a timestamp
 function Write-Log {
     param (
-        [string]$Message
+        [string]$Message,
+        [string]$Level = "INFO"
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "[$timestamp] $Message"
+    Write-Host "[$timestamp] [$Level]: $Message"
 }
 
 # Function to remove unwanted apps
@@ -44,25 +47,25 @@ function Remove-Apps {
     $appInfo = Get-AppxPackage -AllUsers | Where-Object {$_.name -like "*$AppName*"}
     if ($appInfo) {
         if ($appInfo.Count -gt 1) {
-            Write-Log "[INFO] Multiple instances of $($appInfo.Name) found. Removing all instances."
+            Write-Log "Multiple instances of $($appInfo.Name) found. Removing all instances."
             foreach ($instance in $appInfo) {
                 if ($instance.NonRemovable -eq $true) {
-                    Write-Log "[WARN] Cannot remove: $($instance.Name) (Non-removable)"
+                    Write-Log -Message "Cannot remove: $($instance.Name) (Non-removable)" -Level "WARN"
                 } else {
                     # Remove the app using Remove-AppxPackage
-                    Write-Log "[INFO] REMOVE: $($instance.Name)"
+                    Write-Log -Message "REMOVE: $($instance.Name)"
                     $instance | Remove-AppxPackage -AllUsers
                     $script:appsRemoved++
                 }
             }
         } else {
-            Write-Log "[INFO] REMOVE: $($appInfo.Name)"
+            Write-Log -Message "REMOVE: $($appInfo.Name)"
             # Remove the app using Remove-AppxPackage
             $appInfo | Remove-AppxPackage -AllUsers
             $script:appsRemoved++
         }
     } else {
-        Write-Log "[INFO] $appName not found."
+        Write-Log -Message "$appName not found."
     }
 
     # If the RemoveFromImage switch is specified, remove the app from the system image
@@ -70,21 +73,17 @@ function Remove-Apps {
         $appImage = Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -like "*$AppName*"}
         if ($appImage) {
             # Remove the app from the image using Remove-AppxProvisionedPackage
-            Write-Log "[INFO] REMOVE: $AppName from image..."
+            Write-Log -Message "REMOVE: $AppName from image..."
             $appImage | Remove-AppxProvisionedPackage -Online
             $script:appsRemoved++
         } else {
-            Write-Log "[INFO] $AppName not found in image."
+            Write-Log -Message "$AppName not found in image."
         }
     }
 }
 
 # List of unwanted Microsoft apps to remove
 $software = @(
-    ".HPSystemInformation",
-    ".HPPrivacySettings",
-    ".HPPCHardwareDiagnosticsWindows",
-    ".myHP",
     "Microsoft.BingFinance",
     "Microsoft.BingNews",
     "Microsoft.BingSports",
@@ -113,9 +112,13 @@ $appsRemoved = 0
 
 # Loop through each unwanted app and remove it if found
 
-Write-Log "[INFO] $($software.Count) unwanted apps will be removed."
+Write-Log -Message "$($software.Count) unwanted apps will be removed."
+if ($RemoveFromImage) {
+    Write-Log -Message "Apps will be removed from the system image as well."
+}
+
 foreach ($app in $software) {
-    Write-Log "[INFO] Checking for $app..."
+    Write-Log -Message "Checking for $app..."
     if ($RemoveFromImage) {
         Remove-Apps -AppName $app -RemoveFromImage
     } else {
@@ -125,7 +128,7 @@ foreach ($app in $software) {
 
 # Check if any unwanted apps were found and removed
 if ($appsRemoved -eq 0) {
-    Write-Log "[INFO] No unwanted apps removed."
+    Write-Log -Message "No unwanted apps removed."
 } else {
-    Write-Log "[INFO] $appsRemoved unwanted apps removed."
+    Write-Log -Message "$appsRemoved unwanted apps removed."
 }
