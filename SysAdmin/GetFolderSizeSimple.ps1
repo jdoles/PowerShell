@@ -32,9 +32,6 @@ param (
     [switch]$IncludeReparsePoints
 )
 
-$largestFolder = ""
-$largestSize = 0
-
 if (Test-Path -Path $Path) {
     Write-Host "Enumerating: $Path"
     Get-ChildItem -Path $Path -Directory | ForEach-Object {

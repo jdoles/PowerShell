@@ -62,7 +62,6 @@ function Get-FolderSizeOptimized {
     $totalSize = 0
     $fileCount = 0
     $errors = @()
-    $skipped = $false
 
     foreach ($exclude in $ExcludePaths) {
         if ($FolderPath -like "*$exclude*") {
@@ -82,7 +81,7 @@ function Get-FolderSizeOptimized {
                 $totalSize += $fileInfo.Length
                 $fileCount++
             } catch {
-                $errors += "Cannot access file $file : $($_.Exception.Message)"
+                #$errors += "Cannot access file $file : $($_.Exception.Message)"
                 continue
             }
         }
@@ -98,21 +97,21 @@ function Get-FolderSizeOptimized {
                 $subResult = Get-FolderSizeOptimized -FolderPath $subfolder -IncludeReparse $IncludeReparse -ExcludePaths $ExcludePaths
                 $totalSize += $subResult.Size
                 $fileCount += $subResult.Files
-                if ($subResult.Error) { $errors += $subResult.Error }
+                #if ($subResult.Error) { $errors += $subResult.Error }
             } catch {
-                $errors += "Cannot access subfolder $subfolder : $($_.Exception.Message)"
+                #$errors += "Cannot access subfolder $subfolder : $($_.Exception.Message)"
                 continue
             }
         }
     } catch {
-        $errors += "Cannot enumerate subfolders in $FolderPath : $($_.Exception.Message)"
+        #$errors += "Cannot enumerate subfolders in $FolderPath : $($_.Exception.Message)"
     }
 
     return @{
         Size = $totalSize
         Files = $fileCount
         Skipped = $false
-        Error  = ($errors -join "; ")
+        #Error  = ($errors -join "; ")
     }
 }
 
