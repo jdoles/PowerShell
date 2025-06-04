@@ -66,7 +66,7 @@ $chrome32BasePath = "C:\Program Files (x86)\Google\Chrome\"
 #$chromeClassesPath = "Registry::HKEY_CLASSES_ROOT\Installer\Products\"
 $chromeClassesPath = "HKLM:\SOFTWARE\Classes\Installer\Products\"
 
-Write-Host "Stopping Google Chrome processes..."
+Write-Log "Stopping Google Chrome processes..."
 # Stop any running Google Chrome processes
 Get-Process -Name "chrome" -ErrorAction SilentlyContinue | Stop-Process -Force
 
