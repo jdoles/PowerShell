@@ -33,9 +33,14 @@ function Write-Log {
         [string]$Level = "INFO"
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "[$timestamp] [$Level]: $Message"
+    switch ($Level) {
+        "INFO" { $color = "Green" }
+        "WARN" { $color = "Yellow" }
+        "ERROR" { $color = "Red" }
+        default { $color = "White" }
+    }
+    Write-Host "[$timestamp] [$Level]: $Message" -ForegroundColor $color
 }
-
 # Function to remove unwanted apps
 function Remove-Apps {
     param (

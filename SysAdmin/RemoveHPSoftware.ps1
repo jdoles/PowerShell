@@ -2,7 +2,7 @@
     RemoveHPSoftware.ps1
     Author: Justin Doles
     Requires: PowerShell 5 or higher
-    Updated: 2025-05-20
+    Updated: 2025-05-30
     Repository: https://github.com/jdoles/PowerShell
 #>
 <#
@@ -25,7 +25,13 @@ function Write-Log {
         [string]$Level = "INFO"
     )
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "[$timestamp] [$Level]: $Message"
+    switch ($Level) {
+        "INFO" { $color = "Green" }
+        "WARN" { $color = "Yellow" }
+        "ERROR" { $color = "Red" }
+        default { $color = "White" }
+    }
+    Write-Host "[$timestamp] [$Level]: $Message" -ForegroundColor $color
 }
 
 function Remove-Software {
@@ -106,6 +112,7 @@ $software = @(
     "HP Sure Run", # HP's application isolation software
     "HP Sure Run Module", # HP's application isolation software
     "HP System Default Settings",
+    "HP Velocity", # HP's network optimization software
     "HP Welcome",
     "HP Wolf Security",
     "HP Wolf Security - Console"
@@ -113,12 +120,14 @@ $software = @(
 
 # List of UWP apps to remove
 $packages = @(
-    ".HPSystemInformation",
-    ".HPPrivacySettings",
-    ".HPPCHardwareDiagnosticsWindows",
     ".HPDesktopSupportUtilities",
-    ".myHP",
-    ".HPEasyClean"
+    ".HPEasyClean",
+    ".HPSystemInformation",
+    ".HPPCHardwareDiagnosticsWindows",
+    ".HPPrivacySettings",
+    ".HPQuickDrop",
+    ".HPSureShieldAI",
+    ".myHP"    
 )
 
 # Counter for the number of apps found
