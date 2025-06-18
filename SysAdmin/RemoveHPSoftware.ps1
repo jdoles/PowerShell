@@ -2,7 +2,7 @@
     RemoveHPSoftware.ps1
     Author: Justin Doles
     Requires: PowerShell 5 or higher
-    Updated: 2025-05-30
+    Updated: 2025-06-18
     Repository: https://github.com/jdoles/PowerShell
 #>
 <#
@@ -105,6 +105,8 @@ $software = @(
     "HP Easy Clean",
     "HP Games",
     "HP Notifications",
+    "HP Setup",
+    "HP Software Setup",
     "HP Support Assistant",
     "HP Support Information",
     "HP Sure Click", # HP's application isolation software
